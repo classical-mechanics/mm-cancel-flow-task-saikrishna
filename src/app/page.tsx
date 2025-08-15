@@ -1,6 +1,16 @@
 'use client';
 
 import { useState } from 'react';
+import QuestionModal from "@/src/app/components/QuestionModal";
+import CongratsSurveyModal, { Step1Answers } from "@/src/app/components/CongratsSurveyModal";
+import FeedbackModal from "@/src/app/components/FeedbackModal";
+import VisaSupportModal, { VisaSupportResult } from "@/src/app/components/VisaSupportModal";
+import VisaSupportNoMMModal, { VisaSupportNoMMResult } from "@/src/app/components/VisaSupportNoMMModal"; // without-MM
+import CancellationCompleteModal from "@/src/app/components/CancellationCompleteModal";
+import VisaHelpPendingModal from "@/src/app/components/VisaHelpPendingModal";
+import OfferModal from "@/src/app/components/OfferModal";
+
+type View = "empty" | "question" | "congrats" | "feedback" | "visaYes" | "visaNo" | "completedYes" | "completedNoVisa" | "closed" | "offer";
 
 // Mock user data for UI display
 const mockUser = {
@@ -24,6 +34,9 @@ const mockSubscriptionData = {
 export default function ProfilePage() {
   const [loading] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [view, setView] = useState<View>("empty");
+  const [answersStep1, setAnswersStep1] = useState<Step1Answers | null>(null);
+  const [feedback, setFeedback] = useState<string>("");
   
   // New state for settings toggle
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
@@ -248,9 +261,7 @@ export default function ProfilePage() {
                       <span className="text-sm font-medium">View billing history</span>
                     </button>
                     <button
-                      onClick={() => {
-                        console.log('Cancel button clicked - no action');
-                      }}
+                      onClick={() => setView("question")}
                       className="inline-flex items-center justify-center w-full px-4 py-3 bg-white border border-red-200 text-red-600 rounded-lg hover:bg-red-50 hover:border-red-300 transition-all duration-200 shadow-sm group"
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -263,6 +274,96 @@ export default function ProfilePage() {
               </div>
             </div>
           </div>
+
+          {/* Step 0 */}
+          <QuestionModal
+            open={view === "question"}
+            onClose={() => setView("closed")}
+            onYes={() => setView("congrats")}
+            onNo={() => setView("offer")}   // go to Offer
+          />
+
+          {/* Step 1 */}
+          <CongratsSurveyModal
+            open={view === "congrats"}
+            onClose={() => setView("closed")}
+            onBack={() => setView("question")}
+            onNext={(a) => {
+              setAnswersStep1(a);
+              setView("feedback"); // proceed to step 2
+            }}
+          />
+
+          {/* Step 2 */}
+          <FeedbackModal
+            open={view === "feedback"}
+            onClose={() => setView("closed")}
+            onBack={() => setView("congrats")}
+            onNext={(fb) => {
+              setFeedback(fb);
+              // If they found the job with MM → go to Step 3 (Yes variant)
+              if (answersStep1?.withMM === "yes") {
+                setView("visaYes");
+              } else {
+                // TODO: handle a "No with MM" variant or finish
+                setView("visaNo");
+              }
+            }}
+          />
+
+          {/* Step 3A — With MM */}
+          <VisaSupportModal
+            open={view === "visaYes"}
+            onClose={() => setView("closed")}
+            onBack={() => setView("feedback")}
+            onComplete={(r: VisaSupportResult) => {
+              // advance to Completed only if employer provides visa support (Yes)
+              if (r.employerProvidesLawyer) setView("completedYes");
+              else setView("completedNoVisa"); // or branch elsewhere if needed
+            }}
+          />
+
+          {/* Step 3B — Without MM */}
+          <VisaSupportNoMMModal
+            open={view === "visaNo"}
+            onClose={() => setView("closed")}
+            onBack={() => setView("feedback")}
+            onComplete={(r: VisaSupportNoMMResult) => {
+              if (r.employerProvidesLawyer) setView("completedYes");
+              else setView("completedNoVisa");
+            }}
+          />
+
+          {/* Final — Completed */}
+          <CancellationCompleteModal
+            open={view === "completedYes"}
+            onClose={() => setView("closed")}
+            onFinish={() => setView("closed")} // navigate/redirect as desired
+          />
+
+          <VisaHelpPendingModal
+            open={view === "completedNoVisa"}
+            onClose={() => setView("closed")}
+            onFinish={() => setView("closed")}
+          />
+
+          {/* Step 1 (Offer) */}
+          <OfferModal
+            open={view === "offer"}
+            onClose={() => setView("closed")}
+            onBack={() => setView("question")}
+            onAccept={() => {
+              // Apply promo, then close or continue to next step
+              console.log("50% off applied");
+              setView("closed");
+            }}
+            onDecline={() => {
+              // Continue to your next step in the No path (e.g., survey)
+              console.log("Declined offer");
+              setView("closed");
+            }}
+          />
+
         </div>
       </div>
     </div>
