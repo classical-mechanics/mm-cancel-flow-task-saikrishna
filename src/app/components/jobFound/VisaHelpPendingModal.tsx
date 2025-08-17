@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
-import Image from "next/image";
-import ProfileBadge from "@/src/app/components/ProfileBadge";
-import city from "@/public/city.jpg";
+import Image, {StaticImageData} from "next/image";
+import ProfileBadge from "@/src/app/components/helper/ProfileBadge";
+
+type Img = StaticImageData | string;
 
 export default function VisaHelpPendingModal({
+  cityImg,
   open,
   onClose,
   onFinish,
 }: {
+  cityImg: Img;
   open: boolean;
   onClose: () => void;
   onFinish: () => void;
@@ -90,7 +93,7 @@ export default function VisaHelpPendingModal({
           <div className="hidden md:block">
             <div className="overflow-hidden rounded-xl border h-full border-neutral-200">
               <div className="relative w-full h-full">
-                <Image src={city} alt="City skyline" fill className="object-cover" />
+                <Image src={cityImg} alt="City skyline" fill className="object-cover" />
               </div>
             </div>
           </div>

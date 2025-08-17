@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
-import city from "@/public/city.jpg";
+import Image, {StaticImageData} from "next/image";
+
+type Img = StaticImageData | string;
 
 export default function FeedbackModal({
+  cityImg,
   open,
   onClose,
   onBack,
   onNext,
 }: {
+  cityImg: Img;
   open: boolean;
   onClose: () => void;
   onBack: () => void;
@@ -117,7 +120,7 @@ export default function FeedbackModal({
           <div className="hidden md:block">
             <div className="overflow-hidden rounded-xl border border-neutral-200">
               <div className="relative h-[360px] w-full">
-                <Image src={city} alt="City skyline" fill className="object-cover" priority />
+                <Image src={cityImg} alt="City skyline" fill className="object-cover" priority />
               </div>
             </div>
           </div>

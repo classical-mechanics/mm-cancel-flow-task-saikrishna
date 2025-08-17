@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect } from "react";
-import Image from "next/image";
-import city from "@/public/city.jpg";
+import Image, { StaticImageData } from "next/image";
+
+type Img = StaticImageData | string;
 
 export default function QuestionModal({
+  cityImg,
   open,
   onClose,
   onYes,
   onNo,         // NEW
 }: {
+  cityImg: Img;
   open: boolean;
   onClose: () => void;
   onYes: () => void;
@@ -71,7 +74,7 @@ export default function QuestionModal({
           <div className="order-1 md:order-2">
             <div className="overflow-hidden rounded-xl border border-neutral-200">
               <div className="relative aspect-[16/9] md:h-[320px]">
-                <Image src={city} alt="City skyline" fill className="object-cover" priority />
+                <Image src={cityImg} alt="City skyline" fill className="object-cover" priority />
               </div>
             </div>
           </div>

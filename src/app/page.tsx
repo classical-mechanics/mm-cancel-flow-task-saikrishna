@@ -2,15 +2,34 @@
 
 import { useState } from 'react';
 import QuestionModal from "@/src/app/components/QuestionModal";
-import CongratsSurveyModal, { Step1Answers } from "@/src/app/components/CongratsSurveyModal";
-import FeedbackModal from "@/src/app/components/FeedbackModal";
-import VisaSupportModal, { VisaSupportResult } from "@/src/app/components/VisaSupportModal";
-import VisaSupportNoMMModal, { VisaSupportNoMMResult } from "@/src/app/components/VisaSupportNoMMModal"; // without-MM
-import CancellationCompleteModal from "@/src/app/components/CancellationCompleteModal";
-import VisaHelpPendingModal from "@/src/app/components/VisaHelpPendingModal";
-import OfferModal from "@/src/app/components/OfferModal";
+import CongratsSurveyModal, { Step1Answers } from "@/src/app/components/jobFound/CongratsSurveyModal";
+import FeedbackModal from "@/src/app/components/jobFound/FeedbackModal";
+import CancellationCompleteModal from "@/src/app/components/jobFound/CancellationCompleteModal";
+import VisaHelpPendingModal from "@/src/app/components/jobFound/VisaHelpPendingModal";
+import OfferModalAB from "@/src/app/components/jobNotFound/OfferModalAB";
+import OfferAcceptedModal from "@/src/app/components/jobNotFound/OfferAcceptedModal";
+import OfferDeclinedSurveyModal from "@/src/app/components/jobNotFound/OfferDeclinedSurveyModal";
+import CancelReasonModal from "@/src/app/components/jobNotFound/CancelReasonModal";
+import VisaSupportBase from "@/src/app/components/jobFound/VisaSupportBase";
+import { useCancellationFlow, sanitizeOfferSurvey } from "@/src/app/components/cancel-flow/CancellationFlowProvider";
 
-type View = "empty" | "question" | "congrats" | "feedback" | "visaYes" | "visaNo" | "completedYes" | "completedNoVisa" | "closed" | "offer";
+import city from "@/public/city.jpg";
+
+type View =
+  | "empty"
+  | "question"
+  | "congrats"
+  | "feedback"
+  | "visaYes"
+  | "visaNo"
+  | "completedYes"
+  | "completedNoVisa"
+  | "closed"
+  | "offer"
+  | "offerAccepted"
+  | "survey"
+  | "reason"
+  | "complete";
 
 // Mock user data for UI display
 const mockUser = {
@@ -34,10 +53,13 @@ const mockSubscriptionData = {
 export default function ProfilePage() {
   const [loading] = useState(false);
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [view, setView] = useState<View>("empty");
+  const [view, setView] = useState("empty");
   const [answersStep1, setAnswersStep1] = useState<Step1Answers | null>(null);
   const [feedback, setFeedback] = useState<string>("");
-  
+
+  // inside your client component that renders the modals:
+  const { setCongrats } = useCancellationFlow();
+
   // New state for settings toggle
   const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
 
@@ -69,7 +91,7 @@ export default function ProfilePage() {
                 </div>
               </div>
             </div>
-            
+
             {/* Profile Info skeleton */}
             <div className="px-6 py-6 border-b border-gray-200">
               <div className="h-6 w-56 bg-gradient-to-r from-gray-200 to-gray-300 rounded mb-4 animate-pulse"></div>
@@ -88,13 +110,13 @@ export default function ProfilePage() {
                 </div>
               </div>
             </div>
-            
+
             {/* Support skeleton */}
             <div className="px-6 py-6 border-b border-gray-200">
               <div className="h-6 w-24 bg-gradient-to-r from-gray-200 to-gray-300 rounded mb-4 animate-pulse"></div>
               <div className="h-12 w-full bg-gradient-to-r from-gray-200 to-gray-300 rounded-lg animate-pulse"></div>
             </div>
-            
+
             {/* Subscription Management skeleton */}
             <div className="px-6 py-6">
               <div className="h-6 w-56 bg-gradient-to-r from-gray-200 to-gray-300 rounded mb-4 animate-pulse"></div>
@@ -277,93 +299,132 @@ export default function ProfilePage() {
 
           {/* Step 0 */}
           <QuestionModal
+            cityImg={city}
             open={view === "question"}
             onClose={() => setView("closed")}
             onYes={() => setView("congrats")}
-            onNo={() => setView("offer")}   // go to Offer
+            onNo={() => setView("offer")}
           />
 
           {/* Step 1 */}
           <CongratsSurveyModal
+            cityImg={city}
             open={view === "congrats"}
             onClose={() => setView("closed")}
             onBack={() => setView("question")}
             onNext={(a) => {
+              // keep your local copy if needed elsewhere
               setAnswersStep1(a);
-              setView("feedback"); // proceed to step 2
+
+              // NEW: persist congrats answers so VisaSupportBase can send them in /api/cancel/visa
+              // Adjust field names if your Step1Answers differs.
+              setCongrats(a);
+
+              setView("feedback");
             }}
           />
 
           {/* Step 2 */}
           <FeedbackModal
+            cityImg={city}
             open={view === "feedback"}
             onClose={() => setView("closed")}
             onBack={() => setView("congrats")}
             onNext={(fb) => {
               setFeedback(fb);
-              // If they found the job with MM → go to Step 3 (Yes variant)
-              if (answersStep1?.withMM === "yes") {
-                setView("visaYes");
-              } else {
-                // TODO: handle a "No with MM" variant or finish
-                setView("visaNo");
-              }
+              if (answersStep1?.withMM === "yes") setView("visaYes");
+              else setView("visaNo");
             }}
           />
 
-          {/* Step 3A — With MM */}
-          <VisaSupportModal
+          {/* Step 3A — With MM (VisaSupportBase) */}
+          <VisaSupportBase
+            cityImg={city}
             open={view === "visaYes"}
-            onClose={() => setView("closed")}
+            onClose={() => setView("closed")}   // or "completedYes" if you extend the base to return the choice
             onBack={() => setView("feedback")}
-            onComplete={(r: VisaSupportResult) => {
-              // advance to Completed only if employer provides visa support (Yes)
-              if (r.employerProvidesLawyer) setView("completedYes");
-              else setView("completedNoVisa"); // or branch elsewhere if needed
-            }}
+            onCompleted={() => setView("completedYes")}
+            source="with_mm"
+            imageSrc={city.src}
+            heading="We helped you land the job, now let’s help you secure your visa."
+            subheading="We’ve been there and we’re here to help with the visa side of things."
+            partnerHint="We can connect you with one of our trusted partners."
           />
 
-          {/* Step 3B — Without MM */}
-          <VisaSupportNoMMModal
+          {/* Step 3B — Without MM (VisaSupportBase) */}
+          <VisaSupportBase
+            cityImg={city}
             open={view === "visaNo"}
-            onClose={() => setView("closed")}
+            onClose={() => setView("closed")}   // same note as above
             onBack={() => setView("feedback")}
-            onComplete={(r: VisaSupportNoMMResult) => {
-              if (r.employerProvidesLawyer) setView("completedYes");
-              else setView("completedNoVisa");
-            }}
+            onCompleted={() => setView("completedYes")}
+            source="no_mm"
+            imageSrc={city.src}
+            heading="You landed the job! That’s what we live for."
+            subheading="Even if it wasn’t through Migrate Mate, let us help you get your visa sorted."
+            partnerHint="We can connect you with one of our trusted partners."
           />
 
           {/* Final — Completed */}
           <CancellationCompleteModal
+            cityImg={city}
             open={view === "completedYes"}
             onClose={() => setView("closed")}
-            onFinish={() => setView("closed")} // navigate/redirect as desired
+            onFinish={() => setView("closed")}
           />
 
           <VisaHelpPendingModal
+            cityImg={city}
             open={view === "completedNoVisa"}
             onClose={() => setView("closed")}
             onFinish={() => setView("closed")}
           />
 
-          {/* Step 1 (Offer) */}
-          <OfferModal
+          {/* A/B Offer */}
+          <OfferModalAB
+            cityImg={city}
             open={view === "offer"}
             onClose={() => setView("closed")}
             onBack={() => setView("question")}
-            onAccept={() => {
-              // Apply promo, then close or continue to next step
-              console.log("50% off applied");
-              setView("closed");
+            basePriceCents={2500}
+            onAccept={(payload) => {
+              console.log("Offer accepted:", payload);
+              setView("offerAccepted");
             }}
             onDecline={() => {
-              // Continue to your next step in the No path (e.g., survey)
               console.log("Declined offer");
-              setView("closed");
+              setView("survey");
             }}
           />
 
+          <OfferAcceptedModal
+            cityImg={city}
+            open={view === "offerAccepted"}
+            onClose={() => setView("closed")}
+            onContinue={() => setView("closed")}
+            daysLeft={9}
+            nextBillingDate="Oct 2"
+            newPrice="12.50"
+          />
+
+          <OfferDeclinedSurveyModal
+            cityImg={city}
+            open={view === "survey"}
+            onClose={() => setView("closed")}
+            onBack={() => setView("offer")}
+            onUpsell={() => setView("offer")}
+            onContinue={(answers) => {
+              console.log("Survey answers:", answers);
+              setView("reason");
+            }}
+          />
+
+          <CancelReasonModal
+            cityImg={city}
+            open={view === "reason"}
+            onClose={() => setView("closed")}
+            onBack={() => setView("survey")}
+          />
         </div>
       </div>
     </div>

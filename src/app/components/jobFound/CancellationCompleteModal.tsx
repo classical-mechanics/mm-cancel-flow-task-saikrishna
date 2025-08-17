@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect } from "react";
-import Image from "next/image";
-import city from "@/public/city.jpg";
+import Image, {StaticImageData} from "next/image";
+
+type Img = StaticImageData | string;
 
 export default function CancellationCompleteModal({
+  cityImg,
   open,
   onClose,
   onFinish,
 }: {
+  cityImg: Img
   open: boolean;
   onClose: () => void;
   onFinish: () => void;
@@ -65,7 +68,7 @@ export default function CancellationCompleteModal({
         {/* Mobile banner image */}
         <div className="md:hidden">
           <div className="relative mx-4 mt-4 aspect-[16/9] overflow-hidden rounded-xl border border-neutral-200">
-            <Image src="/city.jpg" alt="City skyline" fill className="object-cover" priority />
+            <Image src={cityImg} alt="City skyline" fill className="object-cover" priority />
           </div>
         </div>
 
@@ -93,7 +96,7 @@ export default function CancellationCompleteModal({
           <div className="hidden md:block">
             <div className="overflow-hidden rounded-xl border border-neutral-200">
               <div className="relative h-[240px] w-full">
-                <Image src={city} alt="City skyline" fill className="object-cover" />
+                <Image src={cityImg} alt="City skyline" fill className="object-cover" />
               </div>
             </div>
           </div>
